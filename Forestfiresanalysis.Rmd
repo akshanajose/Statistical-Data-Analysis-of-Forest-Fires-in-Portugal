@@ -1,0 +1,92 @@
+---
+title: "STAT 240 Final Project"
+output: html_document
+
+Names: Sonia, Caroline, Adit, Akshana
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message=FALSE, warning=FALSE)
+library(tidyverse)
+source("/Users/Akshana/Desktop/STAT240/scripts/viridis.R")
+source("/Users/Akshana/Desktop/STAT240/scripts/ggprob.R")
+```
+```{r}
+data = read_csv("/Users/Akshana/Desktop/STAT240/data/forest fires - forestfires.csv")
+```
+
+### Introduction
+Forest fires represent a critical and expanding concern worldwide, with their impacts reaching beyond ecological boundaries to encompass economic and social realms as well. In this report, we delve into the statistical analysis of **forest fires in the country Portugal**, focusing particularly on the interplay between temperature and the total area burned. As temperature is a pivotal factor influencing fire behavior, its roles in shaping the intensity of forest fires warrants thorough investigation. By looking at the relationship between these variables, we aim to glean insights into the underlying patterns and dynamics of fire propagation. Through statistical analysis, we will answer the question: How does the total area burned of fires with temperature exceeding the 60th percentile compare to the total area burned of fires with temperatures under the 40th percentile? Forest fires are rapidly becoming more frequent as a result of increasing global temperatures. Knowing to what degree the temperature influences the area of a forest fire will help communities prepare for disaster.
+
+
+### Background
+The data was collected by Paulo Cortez and Anbal Morais. This was collected by analyzing local meteorological data in Portugal. The data includes 517 instances and thirteen variables:
+
+**X and Y coordinates, 
+Date information (month and day)
+Indices from the Fire Weather Index system (FFMC, DMC, DC, and ISI)
+Temperature (Celsius), RH (relative humidity)
+Wind(km/h), Rain(mm/m2), and Area(ha).**
+
+We will not focus on coordinates or the FWI indices. A single row represents a single instance of a fire. The data is a small sample of world-wide forest fires. Our report will describe the trends found between the area of land burned by fires with temperatures exceeding the 60th percentile compared to the temperatures under the 40th percentile. Our data was found on the University of California Irvine (UCI) Data Machine Learning Repository.
+
+### Analysis:
+To find the true difference in means between area burned of forest fires in the top 40 percentile of temperatures and forest fires in the bottom 40 percentile of temperatures, we will conduct a two-sample t test. Our null hypothesis $H_0$ can be defined as follows:
+
+$H_0:\mu_1-\mu_2=0$
+$\mu_1:$ average area burned of fires between quantiles 0-40
+$\mu_2:$ average area burned of fires between quantiles 60-100
+
+For our analysis, we will use the t statistic and degrees of freedom formulas defined below:
+
+$T=\frac{\bar{x}_1-\bar{x}_2}{\sqrt{\frac{\sigma_1^2}{n_1}+\frac{\sigma_2^2}{n_2}}}$
+$df=\frac{(\sigma_1^2/n_1+\sigma_2^2/n_2)^2}{\frac{(\sigma_1^2/n_1)^2}{(n_1-1)}+\frac{(\sigma_2^2/n_2)^2}{(n_2-1)}}$
+
+```{r}
+high = quantile(data$temp, 0.60)
+low = quantile(data$temp, 0.40)
+x = data %>% filter(temp > high) %>% pull(area)
+y = data %>% filter(temp < low) %>% pull(area)
+t = (mean(x)-mean(y)) / sqrt(var(x)/length(x) + var(y)/length(y))
+df = (var(x)/length(x)+var(y)/length(y))^2 / ((var(x)/length(x))^2/(length(x)-1) + (var(y)/length(y))^2/(length(y)-1))
+t
+df
+```
+
+Using these formulas, we calculate a t statistic of 1.9741 with 212.13 degrees of freedom. The sampling t distribution with 212.13 degrees of freedom has been plotted below with a dashed pink line representing our observed t statistic. To find the p value, we must find the total likelihood of a t statistic occurring that is rarer than our observed value. Finding the area of the shaded regions will give us this p value.
+
+```{r}
+gt(df) + 
+  geom_vline(aes(xintercept = t), color="pink", linetype = 2) + 
+  geom_t_fill(df, a = -5, b = -t, alpha = 0.5) +
+  geom_t_fill(df, a = t, b = 5, alpha = 0.5) +
+  theme_minimal()+
+  ggtitle("P-value visualization",subtitle = "212.13 df, t=1.9741")+
+  xlab("T-statistic")
+
+```
+
+>The result of this t-distribution analysis is the t value 1.9741 as well as 212.13 degrees of freedom. using this information, we can now calculate the p value using the 'pt' function
+
+```{r}
+(1-pt(t, df))*2
+```
+
+
+Using the `pt` function, we get a p value of 0.0497, which is statistically significant with respect to an $\alpha$ value of 0.05.
+
+```{r}
+summary = data %>% mutate(section = ifelse(temp>high, "high", "middle")) %>% mutate(section = ifelse(temp<low, "low", section)) %>% filter(section != "middle")
+ggplot(summary, aes(x=temp, y=area, color=section)) + 
+  geom_point()+
+  xlab("Temperature(Celcius)")+
+  ylab("Area(Hectare)")+
+  ggtitle("Temperature vs. Area")
+
+```
+
+**Conclusion**
+To conclude, we have a graph displaying high temperature and low temperature fires contrasted with the area burned. The low section is displayed in yellow while the high is displayed in purple. The results of the graph show that high temperatures affect larger areas of land, however not consistently which confirms the p-value. This means that we can comfortably reject the null hypothesis and accept the alternative hypothesis stating that there is a significant difference in means. The result of our thorough analysis can be very useful for the inhabitants of Portugal, the potential use cases of this data are limitless.
+
+### References
+^[https://archive.ics.uci.edu/dataset/162/forest+fires]
